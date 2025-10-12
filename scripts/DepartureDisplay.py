@@ -12,6 +12,9 @@ import requests
 import xmltodict
 import time
 import json
+import csv
+
+#lineColorCSV = requests.get("https://raw.githubusercontent.com/Traewelling/line-colors/main/line-colors.csv")
 
 url = "https://api.transitous.org/api/v5/stoptimes?stopId="
 headers = {'Content-Type': 'application/xml'}
@@ -19,6 +22,8 @@ headers = {'Content-Type': 'application/xml'}
 stopPoints = ["de-DELFI_de%3A08212%3A3%3A3%3A3","de-DELFI_de:08212:1001:1:1"]
 track = ""
 #stopPoint = f"de:08212:3{track}"
+
+weatherChoice = True
 
 # Configuration for the matrix
 options = RGBMatrixOptions()
@@ -48,6 +53,45 @@ textColor = graphics.Color(255, 120, 0)
 alleStorung = ""
 
 current_deps = []
+
+def find_line_color(line_name, delfi_agency_id, delfi_agency_name, csv_path="line-colors.csv"):
+    with open(csv_path, newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            if (
+                row["delfiAgencyID"].strip() == delfi_agency_id.strip() and
+                row["delfiAgencyName"].strip() == delfi_agency_name.strip()
+            ):
+                if row["lineName"].strip(" ") == line_name.strip(" "):
+                    return {
+                        "backgroundColor": row["backgroundColor"],
+                        "textColor": row["textColor"],
+                        "borderColor": row["borderColor"],
+                        "shape": row["shape"]}
+
+    return {
+        "backgroundColor": "#000000",
+        "textColor": "#000000"
+    }
+
+def get_weather(lat, lon):
+    weatherURL = "https://api.open-meteo.com/v1/forecast"
+    weatherParams = {
+	"latitude": lat,
+	"longitude": lon,
+	"current": ["temperature_2m", "weather_code"],
+	"forecast_days": 1,
+}
+    
+    weatherResponse = requests.get(weatherURL, params=weatherParams)
+    weatherData = weatherResponse.json()
+    #print(weatherData)
+
+    weatherTemp = weatherData["current"]["temperature_2m"]
+    weatherCode = weatherData["current"]["weather_code"]
+    return weatherTemp, weatherCode
+
+
 
 def get_departures(stopPoint):
     currentTime = (datetime.now()+timedelta(hours=0)).astimezone(tz=pytz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -100,6 +144,9 @@ def get_departures(stopPoint):
         if "DB Fernverkehr AG" in stopeventresult["agencyName"]:
             LineNumber = stopeventresult["displayName"]
 
+        if "RNV" in LineNumber:
+            LineNumber = LineNumber.replace("RNV","")
+
         # if "(Umleitung)" in FullDestination:
         #     ShortDest = FullDestination.split("(Umleitung)")[0]
         # else:
@@ -145,13 +192,41 @@ def get_departures(stopPoint):
             unliveDep = PrintUnlive
             liveDep = ""
 
-        TOC = stopeventresult["agencyName"]
+        agencyName = stopeventresult["agencyName"]
+        agencyId = stopeventresult["agencyId"]
         scheduledDep = place["scheduledDeparture"]
 
-        print(PrintLive, PrintUnlive, LineNumber, ShortDest, Cancelled, BestDeparture)
-        
-        deps.append({"shortTime": shortTime, "stationName": stationName, "liveDep": liveDep, "unliveDep": unliveDep, "depTimestamp": BestDeparture, "scheduledDep":scheduledDep, "TOC":TOC, "line": LineNumber, "destination": ShortDest,
-                     "cancelled": Cancelled})
+        # Get line color info once per departure
+        lineColor = find_line_color(LineNumber, agencyId, agencyName)
+
+        try:
+            lat = place["lat"]
+            lon = place["lon"]
+            if weatherChoice:
+                weatherTemp, weatherCode = get_weather(lat, lon)
+                #weatherIcon = get_weather_icon(weatherCode)
+        except:
+            lat = None
+            lon = None
+            weatherTemp = None
+            weatherCode = None
+
+        deps.append({
+            "shortTime": shortTime,
+            "stationName": stationName,
+            "liveDep": liveDep,
+            "unliveDep": unliveDep,
+            "depTimestamp": BestDeparture,
+            "scheduledDep": scheduledDep,
+            "agencyId": agencyId,
+            "agencyName": agencyName,
+            "line": LineNumber,
+            "destination": ShortDest,
+            "cancelled": Cancelled,
+            "lineColor": lineColor,  # Add color info here
+            "weatherTemp": weatherTemp,
+            "weatherCode": weatherCode
+        })
 
     global current_deps
     current_deps = sorted(deps, key=lambda item: item["depTimestamp"])
@@ -184,41 +259,49 @@ end_pause_start = None          # Timestamp for end pause
 
 #TO DO: Line shapes, lol
 
-lineColorBG = {
-    "1":(236, 27, 36),
-    "2":(0, 113, 187),
-    "3":(147, 113, 57),
-    "4":(212, 168, 0),
-    "5":(0, 191, 242),
-    "8":(246, 148, 31),
-    "17":(100, 1, 2),
-    "18":(18, 114, 73),
-    "NL1":(236, 27, 36),
-    "NL2":(0, 113, 187),
-    "S1":(0, 166, 110),
-    "S11":(0, 166, 110),
-    "S12":(0, 166, 110),
-    "S2":(158, 103, 171),
-    "S3":(212, 168, 0),
-    "S31":(0, 169, 157),
-    "S32":(0, 169, 157),
-    "S4":(158, 25, 77),
-    "S41":(190, 214, 48),
-    "S42":(0, 151, 186),
-    "S5":(244, 152, 151),
-    "S51":(244, 152, 151),
-    "S52":(244, 152, 151),
-    "S6":(45, 22, 71),
-    "S7":(161, 152, 0),
-    "S71":(161, 152, 0),
-    "S8":(109, 105, 43),
-    "S81":(109, 105, 43),
-    "S9":(165, 206, 67),
 
-    "FEX":(0, 166, 110),
 
-    "E":(171, 171, 171),
-}
+def hex_to_rgb(hex):
+  return tuple(int(hex[i:i+2], 16) for i in (0, 2, 4))
+
+
+
+
+# lineColorBG = {
+#     "1":(236, 27, 36),
+#     "2":(0, 113, 187),
+#     "3":(147, 113, 57),
+#     "4":(212, 168, 0),
+#     "5":(0, 191, 242),
+#     "8":(246, 148, 31),
+#     "17":(100, 1, 2),
+#     "18":(18, 114, 73),
+#     "NL1":(236, 27, 36),
+#     "NL2":(0, 113, 187),
+#     "S1":(0, 166, 110),
+#     "S11":(0, 166, 110),
+#     "S12":(0, 166, 110),
+#     "S2":(158, 103, 171),
+#     "S3":(212, 168, 0),
+#     "S31":(0, 169, 157),
+#     "S32":(0, 169, 157),
+#     "S4":(158, 25, 77),
+#     "S41":(190, 214, 48),
+#     "S42":(0, 151, 186),
+#     "S5":(244, 152, 151),
+#     "S51":(244, 152, 151),
+#     "S52":(244, 152, 151),
+#     "S6":(45, 22, 71),
+#     "S7":(161, 152, 0),
+#     "S71":(161, 152, 0),
+#     "S8":(109, 105, 43),
+#     "S81":(109, 105, 43),
+#     "S9":(165, 206, 67),
+
+#     "FEX":(0, 166, 110),
+
+#     "E":(171, 171, 171),
+# }
 
 
 
@@ -246,6 +329,14 @@ while True:
                 
                 ## Header
                 graphics.DrawText(canvas, font, 1, posVert + 10, textColor, current_deps[num]["stationName"])
+
+                if current_deps[num]["weatherTemp"] is not None:
+                    #print(f"Weather: {current_deps[num]['weatherTemp']}°C")
+                    weatherTemp = current_deps[num]["weatherTemp"]
+                    graphics.DrawText(canvas, font, 183, posVert + 10, textColor, f"{weatherTemp}°C")
+                #else:
+                   #print("No weather data")
+
                 graphics.DrawText(canvas, font, 215, posVert + 10, textColor, current_deps[num]["shortTime"])
                 graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
 
@@ -255,27 +346,33 @@ while True:
                 x, y = 0 , posVert + 16 + num * 13  # top-left corner
 
                 line = current_deps[num]["line"]
-                toc = current_deps[num]["TOC"]
+                agencyID = current_deps[num]["agencyId"]
+                agencyName = current_deps[num]["agencyName"]
+            
+                lineColor = current_deps[num]["lineColor"]
+                #print(lineColor["backgroundColor"])
+                #lineColorBackground = hex_to_rgb(lineColor["backgroundColor"])
+                lineColorBackground = hex_to_rgb(lineColor["backgroundColor"].strip("#"))
 
-                if any(x in toc for x in ["Albtal-Verkehrs-Gesellschaft", "Tram VBK","DB Regio AG Mitte Region Südwest"]):
-                    if line in lineColorBG:
-                        lcbr, lcbg, lcbb = lineColorBG[line]
-                        lineColorText = graphics.Color(255, 255, 255)
-                    else:
-                        lcbr, lcbg, lcbb = (0, 0, 0)
-                        lineColorText = textColor
-                else:
-                    if any(x in toc for x in ["Bus VBK"]):
-                        lcbr, lcbg, lcbb = (144, 38, 143)
-                        lineColorText = graphics.Color(255, 255, 255)
-                    else:
-                        lcbr, lcbg, lcbb = (0, 0, 0)
-                        lineColorText = textColor
+                # if any(x in toc for x in ["Albtal-Verkehrs-Gesellschaft", "Tram VBK","DB Regio AG Mitte Region Südwest"]):
+                #     if line in lineColorBG:
+                #         lcbr, lcbg, lcbb = lineColorBG[line]
+                #         lineColorText = graphics.Color(255, 255, 255)
+                #     else:
+                #         lcbr, lcbg, lcbb = (0, 0, 0)
+                #         lineColorText = textColor
+                # else:
+                #     if any(x in toc for x in ["Bus VBK"]):
+                #         lcbr, lcbg, lcbb = (144, 38, 143)
+                #         lineColorText = graphics.Color(255, 255, 255)
+                #     else:
+                #         lcbr, lcbg, lcbb = (0, 0, 0)
+                #         lineColorText = textColor
                 
 
                 for dx in range(19):
                     for dy in range(9):
-                        canvas.SetPixel(x + dx, y + dy, lcbr, lcbg, lcbb)
+                        canvas.SetPixel(x + dx, y + dy, lineColorBackground[0], lineColorBackground[1], lineColorBackground[2])
 
 
                 #Calculating delay

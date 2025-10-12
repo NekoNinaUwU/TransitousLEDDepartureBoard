@@ -16,16 +16,22 @@ How to use:
 - If you now run the DepartureDisplay.py script, you should be able to see some departures and an IP in the console, with which you can open the web control panel.
 
 To-Do:
-- Use the line colour database by Träwelling for Germany-wide line colours
-- optional weather information
-- optional track information
+- Use the line colour database by Träwelling for Germany-wide line colours 🟢 (beta, seems like it works well (but you need to manually download the line-colors.csv and put it in the root directory))
+- optional weather information 🟡 (Works, but needs customizability per station (and tbh not happy how it clips through long station names))
+- optional track/platform information
 - more costumizability (eg text colour, which modes of transport, how many pages)
-- adding multiple stations to one page
-- functioning brightness night mode
+- adding multiple stations to one page (for example when stations are technically connected but different API outputs)
+- functioning brightness night mode (and fix bug when executed on boot, but that's just for my end) 🔴
 - fix disruption/info text row
 - Web UI (like, a real one)
 - "Dont use in production" webserver fix lol
 - long-term: version for browser so no extra display is needed
 - long-term: other library that support text boxes (and borders)
+
+✅ = Done!
+🟢 = Almost done, needs polishing
+🟡 = Works mostly, still needs some work
+🔴 = Might work in some cases, needs a lot of work
+❌ = Won't do
 
 Made with ❤️ in the fox cave. Thanks to all my friends giving me support.

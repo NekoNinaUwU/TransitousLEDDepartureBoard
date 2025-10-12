@@ -1,3 +1,4 @@
 /.venv
 /.vscode
 /rpi-rgb-led-matrix
+line-colors.csv
