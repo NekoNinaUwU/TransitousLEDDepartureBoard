@@ -320,6 +320,17 @@ while True:
             graphics.DrawText(canvas, font, 10, 20, textColor, "Bitte Aushangfahrplan beachten!")
             graphics.DrawText(canvas, font, 10, 45, textColor, "Transitous broke at this station..")
             graphics.DrawText(canvas, font, 10, 55, textColor, "Have a :3 as an apology")
+        elif datetime.fromisoformat(current_deps[0]["scheduledDep"]) - datetime.now(tz=pytz.timezone("Europe/Berlin")) > timedelta(hours=2):
+            graphics.DrawText(canvas, font, 1, posVert + 10, textColor, current_deps[0]["stationName"])
+            if current_deps[0]["weatherTemp"] is not None:
+                weatherTemp = current_deps[0]["weatherTemp"]
+                graphics.DrawText(canvas, font, 183, posVert + 10, textColor, f"{weatherTemp}°C")
+
+            graphics.DrawText(canvas, font, 215, posVert + 10, textColor, current_deps[0]["shortTime"])
+            graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
+            graphics.DrawText(canvas, font, 10, 30, textColor, "Keine Abfahrten in")
+            graphics.DrawText(canvas, font, 10, 45, textColor, "den nächsten 2 Stunden.")
+
         else:
 
             
