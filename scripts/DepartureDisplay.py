@@ -54,25 +54,27 @@ alleStorung = ""
 
 current_deps = []
 
-def find_line_color(line_name, delfi_agency_id, delfi_agency_name, csv_path="line-colors.csv"):
-    with open(csv_path, newline='', encoding='utf-8') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            if (
-                row["delfiAgencyID"].strip() == delfi_agency_id.strip() and
-                row["delfiAgencyName"].strip() == delfi_agency_name.strip()
-            ):
-                if row["lineName"].strip(" ") == line_name.strip(" "):
-                    return {
-                        "backgroundColor": row["backgroundColor"],
-                        "textColor": row["textColor"],
-                        "borderColor": row["borderColor"],
-                        "shape": row["shape"]}
+# def find_line_color(line_name, delfi_agency_id, delfi_agency_name, csv_path="line-colors.csv"):
+#     with open(csv_path, newline='', encoding='utf-8') as csvfile:
+#         reader = csv.DictReader(csvfile)
+#         for row in reader:
+#             if (
+#                 row["delfiAgencyID"].strip() == delfi_agency_id.strip() and
+#                 row["delfiAgencyName"].strip() == delfi_agency_name.strip()
+#             ):
+#                 if row["lineName"].strip(" ") == line_name.strip(" "):
+#                     return {
+#                         "backgroundColor": row["backgroundColor"],
+#                         "textColor": row["textColor"],
+#                         "borderColor": row["borderColor"],
+#                         "shape": row["shape"]}
 
-    return {
-        "backgroundColor": "#000000",
-        "textColor": "#000000"
-    }
+#     return {
+#         "backgroundColor": "#000000",
+#         "textColor": "#000000"
+#     }
+
+
 
 def get_weather(lat, lon):
     weatherURL = "https://api.open-meteo.com/v1/forecast"
@@ -197,7 +199,16 @@ def get_departures(stopPoint):
         scheduledDep = place["scheduledDeparture"]
 
         # Get line color info once per departure
-        lineColor = find_line_color(LineNumber, agencyId, agencyName)
+        try:
+            routeColor = stopeventresult["routeColor"]
+        except:
+            routeColor = "ff7800"
+        #routeTextColor = stopeventresult["routeTextColor"]
+
+        try:
+            routeTextColor = stopeventresult["routeTextColor"]
+        except:
+            routeTextColor = "ffffff"
 
         try:
             lat = place["lat"]
@@ -223,7 +234,8 @@ def get_departures(stopPoint):
             "line": LineNumber,
             "destination": ShortDest,
             "cancelled": Cancelled,
-            "lineColor": lineColor,  # Add color info here
+            "routeColor": routeColor,
+            "routeTextColor": routeTextColor,
             "weatherTemp": weatherTemp,
             "weatherCode": weatherCode
         })
@@ -259,52 +271,8 @@ end_pause_start = None          # Timestamp for end pause
 
 #TO DO: Line shapes, lol
 
-
-
 def hex_to_rgb(hex):
   return tuple(int(hex[i:i+2], 16) for i in (0, 2, 4))
-
-
-
-
-# lineColorBG = {
-#     "1":(236, 27, 36),
-#     "2":(0, 113, 187),
-#     "3":(147, 113, 57),
-#     "4":(212, 168, 0),
-#     "5":(0, 191, 242),
-#     "8":(246, 148, 31),
-#     "17":(100, 1, 2),
-#     "18":(18, 114, 73),
-#     "NL1":(236, 27, 36),
-#     "NL2":(0, 113, 187),
-#     "S1":(0, 166, 110),
-#     "S11":(0, 166, 110),
-#     "S12":(0, 166, 110),
-#     "S2":(158, 103, 171),
-#     "S3":(212, 168, 0),
-#     "S31":(0, 169, 157),
-#     "S32":(0, 169, 157),
-#     "S4":(158, 25, 77),
-#     "S41":(190, 214, 48),
-#     "S42":(0, 151, 186),
-#     "S5":(244, 152, 151),
-#     "S51":(244, 152, 151),
-#     "S52":(244, 152, 151),
-#     "S6":(45, 22, 71),
-#     "S7":(161, 152, 0),
-#     "S71":(161, 152, 0),
-#     "S8":(109, 105, 43),
-#     "S81":(109, 105, 43),
-#     "S9":(165, 206, 67),
-
-#     "FEX":(0, 166, 110),
-
-#     "E":(171, 171, 171),
-# }
-
-
-
 
 
 while True:
@@ -355,35 +323,17 @@ while True:
                 #Line Background Color Block
                 # Draw an 8x7 block at (x, y) with color (r, g, b)
                 x, y = 0 , posVert + 16 + num * 13  # top-left corner
-
-                line = current_deps[num]["line"]
-                agencyID = current_deps[num]["agencyId"]
-                agencyName = current_deps[num]["agencyName"]
             
-                lineColor = current_deps[num]["lineColor"]
-                #print(lineColor["backgroundColor"])
-                #lineColorBackground = hex_to_rgb(lineColor["backgroundColor"])
-                lineColorBackground = hex_to_rgb(lineColor["backgroundColor"].strip("#"))
+                routeColor = current_deps[num]["routeColor"]
+                routeColorHex = hex_to_rgb(routeColor)
 
-                # if any(x in toc for x in ["Albtal-Verkehrs-Gesellschaft", "Tram VBK","DB Regio AG Mitte Region Südwest"]):
-                #     if line in lineColorBG:
-                #         lcbr, lcbg, lcbb = lineColorBG[line]
-                #         lineColorText = graphics.Color(255, 255, 255)
-                #     else:
-                #         lcbr, lcbg, lcbb = (0, 0, 0)
-                #         lineColorText = textColor
-                # else:
-                #     if any(x in toc for x in ["Bus VBK"]):
-                #         lcbr, lcbg, lcbb = (144, 38, 143)
-                #         lineColorText = graphics.Color(255, 255, 255)
-                #     else:
-                #         lcbr, lcbg, lcbb = (0, 0, 0)
-                #         lineColorText = textColor
-                
+                routeTextColor = current_deps[num]["routeTextColor"]
+                routeTextColorHex = hex_to_rgb(routeTextColor)
+                routeTextColorHex = graphics.Color(routeTextColorHex[0], routeTextColorHex[1], routeTextColorHex[2])
 
                 for dx in range(19):
                     for dy in range(9):
-                        canvas.SetPixel(x + dx, y + dy, lineColorBackground[0], lineColorBackground[1], lineColorBackground[2])
+                        canvas.SetPixel(x + dx, y + dy, routeColorHex[0], routeColorHex[1], routeColorHex[2])
 
 
                 #Calculating delay
@@ -406,7 +356,7 @@ while True:
             
 
                 #Line
-                graphics.DrawText(canvas, font, 1, posVert + 24 + num * 13, lineColorText, current_deps[num]["line"])
+                graphics.DrawText(canvas, font, 1, posVert + 24 + num * 13, routeTextColorHex, current_deps[num]["line"])
                 #Departure TIme
 
                 #Destination logic
