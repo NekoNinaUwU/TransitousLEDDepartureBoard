@@ -285,6 +285,9 @@ while True:
 
     try:
         if len(current_deps) == 0 or zeilen == 0:
+            graphics.DrawText(canvas, font, 1, posVert + 10, textColor, current_deps[0]["stationName"])
+            graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
+
             graphics.DrawText(canvas, font, 10, 20, textColor, "Bitte Aushangfahrplan beachten!")
             graphics.DrawText(canvas, font, 10, 45, textColor, "Transitous broke at this station..")
             graphics.DrawText(canvas, font, 10, 55, textColor, "Have a :3 as an apology")
@@ -294,6 +297,9 @@ while True:
                 weatherTemp = current_deps[0]["weatherTemp"]
                 graphics.DrawText(canvas, font, 183, posVert + 10, textColor, f"{weatherTemp}°C")
 
+            graphics.DrawText(canvas, font, 1, posVert + 10, textColor, current_deps[0]["stationName"])
+            graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
+            
             graphics.DrawText(canvas, font, 215, posVert + 10, textColor, current_deps[0]["shortTime"])
             graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
             graphics.DrawText(canvas, font, 10, 30, textColor, "Keine Abfahrten in")
