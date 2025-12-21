@@ -337,7 +337,12 @@ while True:
                 routeTextColorHex = hex_to_rgb(routeTextColor)
                 routeTextColorHex = graphics.Color(routeTextColorHex[0], routeTextColorHex[1], routeTextColorHex[2])
 
-                for dx in range(19):
+                if len(current_deps[num]["line"]) > 3:
+                    lineColorBGlength = 5 + len(current_deps[num]["line"]) * 5
+                else:
+                    lineColorBGlength = 19
+
+                for dx in range(lineColorBGlength):
                     for dy in range(9):
                         canvas.SetPixel(x + dx, y + dy, routeColorHex[0], routeColorHex[1], routeColorHex[2])
 

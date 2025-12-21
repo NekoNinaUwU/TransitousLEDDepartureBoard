@@ -16,7 +16,6 @@ How to use:
 - If you now run the DepartureDisplay.py script, you should be able to see some departures and an IP in the console, with which you can open the web control panel.
 
 To-Do:
-- Use the line colour database by Träwelling for Germany-wide line colours 🟢 (beta, seems like it works well (but you need to manually download the line-colors.csv and put it in the root directory))
 - optional weather information 🟡 (Works, but needs customizability per station (and tbh not happy how it clips through long station names))
 - optional track/platform information
 - more costumizability (eg text colour, which modes of transport, how many pages)
@@ -34,4 +33,5 @@ To-Do:
 🔴 = Might work in some cases, needs a lot of work
 ❌ = Won't do
 
-Made with ❤️ in the fox cave. Thanks to all my friends giving me support.
+Made with ❤️ in the fox cave. Thanks to all my friends giving me support. 
+Thank you to Clara for helping me start this project, you will be greatly missed.
