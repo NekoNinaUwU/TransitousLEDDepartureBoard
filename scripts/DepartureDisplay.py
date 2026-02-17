@@ -377,7 +377,13 @@ while True:
                     destXPos = 22
 
                 if not (current_deps[num]["cancelled"] in ("Ausfall") and cycle_count % 2 ==0):
-                    graphics.DrawText(canvas, font, destXPos, posVert + 24 + num * 13, textColor, current_deps[num]["destination"])
+                    destinationText = current_deps[num]["destination"]
+                    destinationLength = len(destinationText)
+                    if destinationLength > 36 and depDelay == 0:
+                        destinationText = destinationText[:36]
+                    elif destinationLength > 33 and depDelay != 0:
+                        destinationText = destinationText[:33]
+                    graphics.DrawText(canvas, font, destXPos, posVert + 24 + num * 13, textColor, destinationText)
                 else: #Flashing
                     graphics.DrawText(canvas, font, destXPos, posVert + 24 + num * 13, textColor, "entfällt")
                     graphics.DrawText(canvas, font, destXPos, posVert + 24 + num * 13, textColor, "")
