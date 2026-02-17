@@ -18,7 +18,7 @@ url = "https://api.transitous.org/api/v5/stoptimes?stopId="
 headers = {'Content-Type': 'application/xml'}
 
 ## Available: kvv, kvb
-displayDesign = "kvv"
+displayDesign = "kvb"
 
 stopPoints = ["de-DELFI_de%3A08212%3A3%3A3%3A3","de-DELFI_de:08212:1001:1:1"]
 track = ""
@@ -258,6 +258,7 @@ def get_departures(stopPoint):
             LineNumber = stopeventresult["routeShortName"]
             ShortDest = stopeventresult["headsign"]
 
+           
 
             Cancelled = "/"
             try:
@@ -285,8 +286,17 @@ def get_departures(stopPoint):
             agencyId = stopeventresult["agencyId"]
             scheduledDep = place["scheduledDeparture"]
             
+            if "Köln" in ShortDest and agencyName == "Kölner VB":
+                ShortDest = ShortDest.replace("Köln","")
+
             try:
                 track = place["track"]
+                if agencyName == "Kölner VB":
+                    try:
+                        track = place["description"].split("Bahnsteig Gleis ")[1].split(",")[0]
+                    except:
+                        track = place["track"]
+
             except:
                 track = ""
             # Get line color info once per departure
@@ -578,7 +588,7 @@ while True:
             dep = current_deps[0]
             graphics.DrawText(canvas, font, 1, posVert + 10, textColor, dep["shortDate"])
             graphics.DrawText(canvas, font, 65, posVert + 10, textColor, dep["shortTime"])
-            graphics.DrawText(canvas, font, 170, posVert + 10, textColor, "Gleis")
+            graphics.DrawText(canvas, font, 180, posVert + 10, textColor, "Gleis")
             graphics.DrawText(canvas, font, 238, posVert + 10, textColor, "in")
             
             for num in range(min(zeilen, len(current_deps))):
@@ -598,7 +608,7 @@ while True:
                 #Individual Departures
                 graphics.DrawText(canvas, font, 1, posVert + 23 + num * 13, textColor, dep["line"])
                 graphics.DrawText(canvas, font, 30, posVert + 23 + num * 13, textColor, dep["destination"])
-                graphics.DrawText(canvas, font, 182, posVert + 23 + num * 13, textColor, dep["track"])
+                graphics.DrawText(canvas, font, 192, posVert + 23 + num * 13, textColor, dep["track"])
                 if dep["liveDep"] != "":
                     graphics.DrawText(canvas, font, 215, posVert + 23 + num * 13, textColor, dep["liveDep"])
                 else:
