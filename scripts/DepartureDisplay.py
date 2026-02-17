@@ -18,7 +18,7 @@ url = "https://api.transitous.org/api/v5/stoptimes?stopId="
 headers = {'Content-Type': 'application/xml'}
 
 ## Available: kvv, test
-displayDesign = "kvv"
+displayDesign = "test"
 
 stopPoints = ["de-DELFI_de%3A08212%3A3%3A3%3A3","de-DELFI_de:08212:1001:1:1"]
 track = ""
@@ -542,7 +542,10 @@ while True:
 
         canvas = matrix.SwapOnVSync(canvas)
         time.sleep(1/updateInterval)
+
+
     elif displayDesign == "test":
+        canvas.Clear()
         zeilen = 4
         try:
             for num in range(min(zeilen, len(current_deps))):
@@ -558,5 +561,24 @@ while True:
 
         except Exception as e:
             print(f"verkackt beim rendern {e}")
+
+        update_counter = update_counter + 1
+        if update_counter >= updateInterval:
+            update_counter = 0
+            cycle_count = cycle_count + 1
+            if cycle_count >= 14:
+                cycle_count = 0
+
+                web_value = stop_point_value.value
+                stopPoints = []
+                for station in web_value.splitlines():
+                    stopPoints.append(station)
+                    
+                stop_index_counter = stop_index_counter + 1
+                if stop_index_counter >= len(stopPoints):
+                    stop_index_counter = 0
+
+                Thread(target=get_departures, args=[stopPoints[stop_index_counter]]).start()
+        
         canvas = matrix.SwapOnVSync(canvas)
-        time.sleep(1)
+        time.sleep(1/updateInterval)
