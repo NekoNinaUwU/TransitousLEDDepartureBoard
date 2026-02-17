@@ -17,8 +17,8 @@ import csv
 url = "https://api.transitous.org/api/v5/stoptimes?stopId="
 headers = {'Content-Type': 'application/xml'}
 
-## Available: kvv, test
-displayDesign = "test"
+## Available: kvv, kvb
+displayDesign = "kvv"
 
 stopPoints = ["de-DELFI_de%3A08212%3A3%3A3%3A3","de-DELFI_de:08212:1001:1:1"]
 track = ""
@@ -48,8 +48,16 @@ options.gpio_slowdown = 5
 matrix = RGBMatrix(options=options)
 canvas = matrix.CreateFrameCanvas()
 font = graphics.Font()
-font.LoadFont("fonts/kvv-custom-14.bdf")
-textColor = graphics.Color(255, 120, 0)
+
+if displayDesign == "kvv":
+    font.LoadFont("fonts/kvv-custom-14.bdf")
+    textColor = graphics.Color(255, 120, 0)
+elif displayDesign == "kvb":
+    font.LoadFont("fonts/7x13.bdf")
+    textColor = graphics.Color(255, 255, 255)
+else:
+    font.LoadFont("fonts/7x13.bdf")
+    textColor = graphics.Color(255, 120, 0)
 
 alleStorung = ""
 
@@ -82,6 +90,7 @@ def get_departures(stopPoint):
     newr = json.loads(r.text)
 
     shortTime = datetime.now().strftime("%H:%M")
+    shortDate = datetime.now().strftime("%d.%m.%y")
 
     deps = []
 
@@ -220,8 +229,9 @@ def get_departures(stopPoint):
                 "weatherCode": weatherCode
             })
 
-    else:
-         for stopeventresult in newr["stopTimes"]:
+    elif displayDesign == "kvb":
+        shortTime = datetime.now().strftime("%H:%M") + " Uhr"
+        for stopeventresult in newr["stopTimes"]:
             #print(stopeventresult)
             place = stopeventresult["place"]
             #tripto = stopeventresult["tripto"]
@@ -230,13 +240,19 @@ def get_departures(stopPoint):
                 LiveDeparture = place["departure"]
                 PrintLiveConv = datetime.fromisoformat(LiveDeparture).astimezone(pytz.timezone("Europe/Berlin"))
                 # PrintLive = PrintLiveConv.strftime("%H:%M")
-                PrintLive = f"{PrintLiveConv.hour:02}:{PrintLiveConv.minute:02}"
+                LiveAb = PrintLiveConv.timestamp() - currentTimestamp
+                PrintLive = f"{math.floor(LiveAb / 60)} Min"
+                minAb = math.floor(LiveAb / 60)
+                if minAb <= 0:
+                    PrintLive = "Sofort"
                 UnliveDeparture = ""
                 PrintUnlive = "/"
             else:
                 UnliveDeparture = place["scheduledDeparture"]
                 PrintUnliveConv = datetime.fromisoformat(UnliveDeparture).astimezone(pytz.timezone("Europe/Berlin"))
-                PrintUnlive = PrintUnliveConv.strftime("%H:%M")
+                PrintUnlive = f"{math.floor((PrintUnliveConv.timestamp() - currentTimestamp) / 60)} Min"
+                if math.floor((PrintUnliveConv.timestamp() - currentTimestamp) / 60) <= 0:
+                    PrintUnlive = "Sofort"
                 PrintLive = "/"
             
             LineNumber = stopeventresult["routeShortName"]
@@ -249,6 +265,7 @@ def get_departures(stopPoint):
                     Cancelled = "Ausfall"
             except:
                 pass
+
 
             BestDeparture = ""
             if LiveDeparture is not None:
@@ -267,7 +284,11 @@ def get_departures(stopPoint):
             agencyName = stopeventresult["agencyName"]
             agencyId = stopeventresult["agencyId"]
             scheduledDep = place["scheduledDeparture"]
-
+            
+            try:
+                track = place["track"]
+            except:
+                track = ""
             # Get line color info once per departure
             try:
                 routeColor = stopeventresult["routeColor"]
@@ -294,11 +315,13 @@ def get_departures(stopPoint):
 
             deps.append({
                 "shortTime": shortTime,
+                "shortDate" : shortDate,
                 "stationName": stationName,
                 "liveDep": liveDep,
                 "unliveDep": unliveDep,
                 "depTimestamp": BestDeparture,
                 "scheduledDep": scheduledDep,
+                "track" : track,
                 "agencyId": agencyId,
                 "agencyName": agencyName,
                 "line": LineNumber,
@@ -544,20 +567,44 @@ while True:
         time.sleep(1/updateInterval)
 
 
-    elif displayDesign == "test":
+    elif displayDesign == "kvb":
         canvas.Clear()
-        zeilen = 4
+        zeilen = 5
         try:
+            # Header (drawn once)
+            for dx in range(256):
+                    for dy in range(13):
+                        canvas.SetPixel(0 + dx, 0 + dy, 0, 0, 128)
+            dep = current_deps[0]
+            graphics.DrawText(canvas, font, 1, posVert + 10, textColor, dep["shortDate"])
+            graphics.DrawText(canvas, font, 65, posVert + 10, textColor, dep["shortTime"])
+            graphics.DrawText(canvas, font, 170, posVert + 10, textColor, "Gleis")
+            graphics.DrawText(canvas, font, 238, posVert + 10, textColor, "in")
+            
             for num in range(min(zeilen, len(current_deps))):
                 dep = current_deps[num]
-                graphics.DrawText(canvas, font, 1, posVert + 10, textColor, dep["stationName"])
-                graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
-                graphics.DrawText(canvas, font, 1, posVert + 10, textColor, dep["stationName"])
-                graphics.DrawText(canvas, font, 215, posVert + 10, textColor, dep["shortTime"])
-                graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
-                graphics.DrawText(canvas, font, 1, posVert + 24 + num * 13, textColor, dep["line"])
-                graphics.DrawText(canvas, font, 50, posVert + 24 + num * 13, textColor, dep["destination"])
-                graphics.DrawText(canvas, font, 215, posVert + 24 + num * 13, textColor, dep["liveDep"] if dep["liveDep"] != "" else dep["unliveDep"])
+
+                #Background Color Block
+                x, y = 0 , posVert + 13 + num * 13  # top-left corner
+                blue2 = graphics.Color(0, 0, 128)
+                blue1 = graphics.Color(0, 0, 192)
+                for dx in range(256):
+                    for dy in range(13):
+                        if num % 2 == 0:
+                            canvas.SetPixel(x + dx, y + dy, blue1.red, blue1.green, blue1.blue)
+                        else:
+                            canvas.SetPixel(x + dx, y + dy, blue2.red, blue2.green, blue2.blue)
+
+                #Individual Departures
+                graphics.DrawText(canvas, font, 1, posVert + 23 + num * 13, textColor, dep["line"])
+                graphics.DrawText(canvas, font, 30, posVert + 23 + num * 13, textColor, dep["destination"])
+                graphics.DrawText(canvas, font, 182, posVert + 23 + num * 13, textColor, dep["track"])
+                if dep["liveDep"] != "":
+                    graphics.DrawText(canvas, font, 215, posVert + 23 + num * 13, textColor, dep["liveDep"])
+                else:
+                    graphics.DrawText(canvas, font, 215, posVert + 23 + num * 13, textColor, dep["unliveDep"])
+
+
 
         except Exception as e:
             print(f"verkackt beim rendern {e}")
