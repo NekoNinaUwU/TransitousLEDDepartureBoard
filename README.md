@@ -22,7 +22,7 @@ To-Do:
 - adding multiple stations to one page (for example when stations are technically connected but different API outputs)
 - functioning brightness night mode (and fix bug when executed on boot, but that's just for my end) 🔴
 - fix disruption/info text row
-- Web UI (like, a real one)
+- Web UI (like, a real one) with options to set colours, fonts?, how the display should flash/look/behave etc
 - "Dont use in production" webserver fix lol
 - long-term: version for browser so no extra display is needed
 - long-term: other library that support text boxes (and borders)

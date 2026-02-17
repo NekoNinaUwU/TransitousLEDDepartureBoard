@@ -14,10 +14,11 @@ import time
 import json
 import csv
 
-#lineColorCSV = requests.get("https://raw.githubusercontent.com/Traewelling/line-colors/main/line-colors.csv")
-
 url = "https://api.transitous.org/api/v5/stoptimes?stopId="
 headers = {'Content-Type': 'application/xml'}
+
+## Available: kvv, test
+displayDesign = "kvv"
 
 stopPoints = ["de-DELFI_de%3A08212%3A3%3A3%3A3","de-DELFI_de:08212:1001:1:1"]
 track = ""
@@ -54,28 +55,6 @@ alleStorung = ""
 
 current_deps = []
 
-# def find_line_color(line_name, delfi_agency_id, delfi_agency_name, csv_path="line-colors.csv"):
-#     with open(csv_path, newline='', encoding='utf-8') as csvfile:
-#         reader = csv.DictReader(csvfile)
-#         for row in reader:
-#             if (
-#                 row["delfiAgencyID"].strip() == delfi_agency_id.strip() and
-#                 row["delfiAgencyName"].strip() == delfi_agency_name.strip()
-#             ):
-#                 if row["lineName"].strip(" ") == line_name.strip(" "):
-#                     return {
-#                         "backgroundColor": row["backgroundColor"],
-#                         "textColor": row["textColor"],
-#                         "borderColor": row["borderColor"],
-#                         "shape": row["shape"]}
-
-#     return {
-#         "backgroundColor": "#000000",
-#         "textColor": "#000000"
-#     }
-
-
-
 def get_weather(lat, lon):
     weatherURL = "https://api.open-meteo.com/v1/forecast"
     weatherParams = {
@@ -109,136 +88,227 @@ def get_departures(stopPoint):
     #print(newr)
     stationName = newr["place"]["name"]
 
-    for stopeventresult in newr["stopTimes"]:
-        #print(stopeventresult)
-        place = stopeventresult["place"]
-        #tripto = stopeventresult["tripto"]
-        LiveDeparture = None
-        if stopeventresult["realTime"] == True:
-            LiveDeparture = place["departure"]
-            PrintLiveConv = datetime.fromisoformat(LiveDeparture).astimezone(pytz.timezone("Europe/Berlin"))
-            # PrintLive = PrintLiveConv.strftime("%H:%M")
-            LiveAb = PrintLiveConv.timestamp() - currentTimestamp
-            if LiveAb > 600:
-                PrintLive = f"{PrintLiveConv.hour:02}:{PrintLiveConv.minute:02}"
-            else:
-                minAb = math.floor(LiveAb / 60)
-                if minAb <= 0:
-                    PrintLive = "sofort"
+    if displayDesign == "kvv":
+        for stopeventresult in newr["stopTimes"]:
+            #print(stopeventresult)
+            place = stopeventresult["place"]
+            #tripto = stopeventresult["tripto"]
+            LiveDeparture = None
+            if stopeventresult["realTime"] == True:
+                LiveDeparture = place["departure"]
+                PrintLiveConv = datetime.fromisoformat(LiveDeparture).astimezone(pytz.timezone("Europe/Berlin"))
+                # PrintLive = PrintLiveConv.strftime("%H:%M")
+                LiveAb = PrintLiveConv.timestamp() - currentTimestamp
+                if LiveAb > 600:
+                    PrintLive = f"{PrintLiveConv.hour:02}:{PrintLiveConv.minute:02}"
                 else:
-                    PrintLive = f"in {math.floor(LiveAb / 60)} min"
-            UnliveDeparture = ""
-            PrintUnlive = "/"
-        else:
-            UnliveDeparture = place["scheduledDeparture"]
-            PrintUnliveConv = datetime.fromisoformat(UnliveDeparture).astimezone(pytz.timezone("Europe/Berlin"))
-            PrintUnlive = PrintUnliveConv.strftime("%H:%M")
-            PrintLive = "/"
-        LineNumber = stopeventresult["routeShortName"]
-        
-        if "FDS Hbf" in stopeventresult["headsign"]:
-            ShortDest = "Freudenstadt Hbf"
-        elif "Hauptbahnhof (oben)" in stopeventresult["headsign"]:
-            ShortDest = "Stuttgart Hbf"
-        else:
+                    minAb = math.floor(LiveAb / 60)
+                    if minAb <= 0:
+                        PrintLive = "sofort"
+                    else:
+                        PrintLive = f"in {math.floor(LiveAb / 60)} min"
+                UnliveDeparture = ""
+                PrintUnlive = "/"
+            else:
+                UnliveDeparture = place["scheduledDeparture"]
+                PrintUnliveConv = datetime.fromisoformat(UnliveDeparture).astimezone(pytz.timezone("Europe/Berlin"))
+                PrintUnlive = PrintUnliveConv.strftime("%H:%M")
+                PrintLive = "/"
+            LineNumber = stopeventresult["routeShortName"]
+            
+            if "FDS Hbf" in stopeventresult["headsign"]:
+                ShortDest = "Freudenstadt Hbf"
+            elif "Hauptbahnhof (oben)" in stopeventresult["headsign"]:
+                ShortDest = "Stuttgart Hbf"
+            else:
+                ShortDest = stopeventresult["headsign"]
+
+            if "DB Fernverkehr AG" in stopeventresult["agencyName"]:
+                LineNumber = stopeventresult["displayName"]
+
+            if "RNV" in LineNumber:
+                LineNumber = LineNumber.replace("RNV","")
+
+            # if "(Umleitung)" in FullDestination:
+            #     ShortDest = FullDestination.split("(Umleitung)")[0]
+            # else:
+            #     ShortDest = FullDestination
+            # if "> SEV ab" in FullDestination:
+            #     ShortDest = FullDestination.split(" ab")[0]
+
+            Cancelled = "/"
+            try:
+                if place["cancelled"]: #or place["CallAtStop"]["NotServicedStop"] == "true"
+                    Cancelled = "Ausfall"
+            except:
+                pass
+            
+            # if "Attribute" in tripto:
+            #     try:
+            #         GetStepfree = tripto["Attribute"]["Text"]["Text"]
+            #     except:
+            #         GetStepfree = ""
+
+            #print(GetStepfree)
+
+            #     if "Niederflurwagen" in GetStepfree or "Stufenloses" in GetStepfree:
+            #         Stepfree = "¤"
+            #         #Stepfree = "£"
+            #     else:
+            #         Stepfree = ""
+
+            # else:
+            #     Stepfree = ""
+
+            BestDeparture = ""
+            if LiveDeparture is not None:
+                BestDeparture = LiveDeparture
+            else:
+                BestDeparture = UnliveDeparture
+
+            DepartureString = ""
+            if PrintLive != "/":
+                liveDep = PrintLive
+                unliveDep = ""
+            else:
+                unliveDep = PrintUnlive
+                liveDep = ""
+
+            agencyName = stopeventresult["agencyName"]
+            agencyId = stopeventresult["agencyId"]
+            scheduledDep = place["scheduledDeparture"]
+
+            # Get line color info once per departure
+            try:
+                routeColor = stopeventresult["routeColor"]
+            except:
+                routeColor = "ff7800"
+            #routeTextColor = stopeventresult["routeTextColor"]
+
+            try:
+                routeTextColor = stopeventresult["routeTextColor"]
+            except:
+                routeTextColor = "ffffff"
+
+            try:
+                lat = place["lat"]
+                lon = place["lon"]
+                if weatherChoice:
+                    weatherTemp, weatherCode = get_weather(lat, lon)
+                    #weatherIcon = get_weather_icon(weatherCode)
+            except:
+                lat = None
+                lon = None
+                weatherTemp = None
+                weatherCode = None
+
+            deps.append({
+                "shortTime": shortTime,
+                "stationName": stationName,
+                "liveDep": liveDep,
+                "unliveDep": unliveDep,
+                "depTimestamp": BestDeparture,
+                "scheduledDep": scheduledDep,
+                "agencyId": agencyId,
+                "agencyName": agencyName,
+                "line": LineNumber,
+                "destination": ShortDest,
+                "cancelled": Cancelled,
+                "routeColor": routeColor,
+                "routeTextColor": routeTextColor,
+                "weatherTemp": weatherTemp,
+                "weatherCode": weatherCode
+            })
+
+    else:
+         for stopeventresult in newr["stopTimes"]:
+            #print(stopeventresult)
+            place = stopeventresult["place"]
+            #tripto = stopeventresult["tripto"]
+            LiveDeparture = None
+            if stopeventresult["realTime"] == True:
+                LiveDeparture = place["departure"]
+                PrintLiveConv = datetime.fromisoformat(LiveDeparture).astimezone(pytz.timezone("Europe/Berlin"))
+                # PrintLive = PrintLiveConv.strftime("%H:%M")
+                PrintLive = f"{PrintLiveConv.hour:02}:{PrintLiveConv.minute:02}"
+                UnliveDeparture = ""
+                PrintUnlive = "/"
+            else:
+                UnliveDeparture = place["scheduledDeparture"]
+                PrintUnliveConv = datetime.fromisoformat(UnliveDeparture).astimezone(pytz.timezone("Europe/Berlin"))
+                PrintUnlive = PrintUnliveConv.strftime("%H:%M")
+                PrintLive = "/"
+            
+            LineNumber = stopeventresult["routeShortName"]
             ShortDest = stopeventresult["headsign"]
 
-        if "DB Fernverkehr AG" in stopeventresult["agencyName"]:
-            LineNumber = stopeventresult["displayName"]
 
-        if "RNV" in LineNumber:
-            LineNumber = LineNumber.replace("RNV","")
+            Cancelled = "/"
+            try:
+                if place["cancelled"]:
+                    Cancelled = "Ausfall"
+            except:
+                pass
 
-        # if "(Umleitung)" in FullDestination:
-        #     ShortDest = FullDestination.split("(Umleitung)")[0]
-        # else:
-        #     ShortDest = FullDestination
-        # if "> SEV ab" in FullDestination:
-        #     ShortDest = FullDestination.split(" ab")[0]
+            BestDeparture = ""
+            if LiveDeparture is not None:
+                BestDeparture = LiveDeparture
+            else:
+                BestDeparture = UnliveDeparture
 
-        Cancelled = "/"
-        try:
-            if place["cancelled"]: #or place["CallAtStop"]["NotServicedStop"] == "true"
-                Cancelled = "Ausfall"
-        except:
-            pass
-        
-        # if "Attribute" in tripto:
-        #     try:
-        #         GetStepfree = tripto["Attribute"]["Text"]["Text"]
-        #     except:
-        #         GetStepfree = ""
+            DepartureString = ""
+            if PrintLive != "/":
+                liveDep = PrintLive
+                unliveDep = ""
+            else:
+                unliveDep = PrintUnlive
+                liveDep = ""
 
-        #print(GetStepfree)
+            agencyName = stopeventresult["agencyName"]
+            agencyId = stopeventresult["agencyId"]
+            scheduledDep = place["scheduledDeparture"]
 
-        #     if "Niederflurwagen" in GetStepfree or "Stufenloses" in GetStepfree:
-        #         Stepfree = "¤"
-        #         #Stepfree = "£"
-        #     else:
-        #         Stepfree = ""
+            # Get line color info once per departure
+            try:
+                routeColor = stopeventresult["routeColor"]
+            except:
+                routeColor = "ff7800"
+            #routeTextColor = stopeventresult["routeTextColor"]
 
-        # else:
-        #     Stepfree = ""
+            try:
+                routeTextColor = stopeventresult["routeTextColor"]
+            except:
+                routeTextColor = "ffffff"
 
-        BestDeparture = ""
-        if LiveDeparture is not None:
-            BestDeparture = LiveDeparture
-        else:
-            BestDeparture = UnliveDeparture
+            try:
+                lat = place["lat"]
+                lon = place["lon"]
+                if weatherChoice:
+                    weatherTemp, weatherCode = get_weather(lat, lon)
+                    #weatherIcon = get_weather_icon(weatherCode)
+            except:
+                lat = None
+                lon = None
+                weatherTemp = None
+                weatherCode = None
 
-        DepartureString = ""
-        if PrintLive != "/":
-            liveDep = PrintLive
-            unliveDep = ""
-        else:
-            unliveDep = PrintUnlive
-            liveDep = ""
-
-        agencyName = stopeventresult["agencyName"]
-        agencyId = stopeventresult["agencyId"]
-        scheduledDep = place["scheduledDeparture"]
-
-        # Get line color info once per departure
-        try:
-            routeColor = stopeventresult["routeColor"]
-        except:
-            routeColor = "ff7800"
-        #routeTextColor = stopeventresult["routeTextColor"]
-
-        try:
-            routeTextColor = stopeventresult["routeTextColor"]
-        except:
-            routeTextColor = "ffffff"
-
-        try:
-            lat = place["lat"]
-            lon = place["lon"]
-            if weatherChoice:
-                weatherTemp, weatherCode = get_weather(lat, lon)
-                #weatherIcon = get_weather_icon(weatherCode)
-        except:
-            lat = None
-            lon = None
-            weatherTemp = None
-            weatherCode = None
-
-        deps.append({
-            "shortTime": shortTime,
-            "stationName": stationName,
-            "liveDep": liveDep,
-            "unliveDep": unliveDep,
-            "depTimestamp": BestDeparture,
-            "scheduledDep": scheduledDep,
-            "agencyId": agencyId,
-            "agencyName": agencyName,
-            "line": LineNumber,
-            "destination": ShortDest,
-            "cancelled": Cancelled,
-            "routeColor": routeColor,
-            "routeTextColor": routeTextColor,
-            "weatherTemp": weatherTemp,
-            "weatherCode": weatherCode
-        })
+            deps.append({
+                "shortTime": shortTime,
+                "stationName": stationName,
+                "liveDep": liveDep,
+                "unliveDep": unliveDep,
+                "depTimestamp": BestDeparture,
+                "scheduledDep": scheduledDep,
+                "agencyId": agencyId,
+                "agencyName": agencyName,
+                "line": LineNumber,
+                "destination": ShortDest,
+                "cancelled": Cancelled,
+                "routeColor": routeColor,
+                "routeTextColor": routeTextColor,
+                "weatherTemp": weatherTemp,
+                "weatherCode": weatherCode
+            })
 
     global current_deps
     current_deps = sorted(deps, key=lambda item: item["depTimestamp"])
@@ -276,198 +346,217 @@ def hex_to_rgb(hex):
 
 
 while True:
-    canvas.Clear()
+    if displayDesign == "kvv":
+        canvas.Clear()
 
-    if alleStorung == "":
-        zeilen = 8
-    else:
-        zeilen = 3
-
-    try:
-        if len(current_deps) == 0 or zeilen == 0:
-            graphics.DrawText(canvas, font, 1, posVert + 10, textColor, current_deps[0]["stationName"])
-            graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
-
-            graphics.DrawText(canvas, font, 10, 20, textColor, "Bitte Aushangfahrplan beachten!")
-            graphics.DrawText(canvas, font, 10, 45, textColor, "Transitous broke at this station..")
-            graphics.DrawText(canvas, font, 10, 55, textColor, "Have a :3 as an apology")
-        elif datetime.fromisoformat(current_deps[0]["scheduledDep"]) - datetime.now(tz=pytz.timezone("Europe/Berlin")) > timedelta(hours=2):
-            graphics.DrawText(canvas, font, 1, posVert + 10, textColor, current_deps[0]["stationName"])
-            if current_deps[0]["weatherTemp"] is not None:
-                weatherTemp = current_deps[0]["weatherTemp"]
-                graphics.DrawText(canvas, font, 183, posVert + 10, textColor, f"{weatherTemp}°C")
-
-            graphics.DrawText(canvas, font, 1, posVert + 10, textColor, current_deps[0]["stationName"])
-            graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
-            
-            graphics.DrawText(canvas, font, 215, posVert + 10, textColor, current_deps[0]["shortTime"])
-            graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
-            graphics.DrawText(canvas, font, 10, 30, textColor, "Keine Abfahrten in")
-            graphics.DrawText(canvas, font, 10, 45, textColor, "den nächsten 2 Stunden.")
-
+        if alleStorung == "":
+            zeilen = 8
         else:
+            zeilen = 3
 
-            
-
-            for num in range(min(zeilen, len(current_deps))):
-                #depWidth = len(current_deps[num]["departure"]) * 7
-                
-                ## Header
-                graphics.DrawText(canvas, font, 1, posVert + 10, textColor, current_deps[num]["stationName"])
-
-                if current_deps[num]["weatherTemp"] is not None:
-                    #print(f"Weather: {current_deps[num]['weatherTemp']}°C")
-                    weatherTemp = current_deps[num]["weatherTemp"]
-                    graphics.DrawText(canvas, font, 183, posVert + 10, textColor, f"{weatherTemp}°C")
-                #else:
-                   #print("No weather data")
-
-                graphics.DrawText(canvas, font, 215, posVert + 10, textColor, current_deps[num]["shortTime"])
+        try:
+            if len(current_deps) == 0 or zeilen == 0:
+                graphics.DrawText(canvas, font, 1, posVert + 10, textColor, current_deps[0]["stationName"])
                 graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
 
+                graphics.DrawText(canvas, font, 10, 20, textColor, "Bitte Aushangfahrplan beachten!")
+                graphics.DrawText(canvas, font, 10, 45, textColor, "Transitous broke at this station..")
+                graphics.DrawText(canvas, font, 10, 55, textColor, "Have a :3 as an apology")
+            elif datetime.fromisoformat(current_deps[0]["scheduledDep"]) - datetime.now(tz=pytz.timezone("Europe/Berlin")) > timedelta(hours=2):
+                graphics.DrawText(canvas, font, 1, posVert + 10, textColor, current_deps[0]["stationName"])
+                if current_deps[0]["weatherTemp"] is not None:
+                    weatherTemp = current_deps[0]["weatherTemp"]
+                    graphics.DrawText(canvas, font, 183, posVert + 10, textColor, f"{weatherTemp}°C")
+
+                graphics.DrawText(canvas, font, 1, posVert + 10, textColor, current_deps[0]["stationName"])
+                graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
                 
-                #Line Background Color Block
-                # Draw an 8x7 block at (x, y) with color (r, g, b)
-                x, y = 0 , posVert + 16 + num * 13  # top-left corner
-            
-                routeColor = current_deps[num]["routeColor"]
-                routeColorHex = hex_to_rgb(routeColor)
+                graphics.DrawText(canvas, font, 215, posVert + 10, textColor, current_deps[0]["shortTime"])
+                graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
+                graphics.DrawText(canvas, font, 10, 30, textColor, "Keine Abfahrten in")
+                graphics.DrawText(canvas, font, 10, 45, textColor, "den nächsten 2 Stunden.")
 
-                routeTextColor = current_deps[num]["routeTextColor"]
-                routeTextColorHex = hex_to_rgb(routeTextColor)
-                routeTextColorHex = graphics.Color(routeTextColorHex[0], routeTextColorHex[1], routeTextColorHex[2])
+            else:
 
-                if len(current_deps[num]["line"]) > 3:
-                    lineColorBGlength = 5 + len(current_deps[num]["line"]) * 5
-                else:
-                    lineColorBGlength = 19
-
-                for dx in range(lineColorBGlength):
-                    for dy in range(9):
-                        canvas.SetPixel(x + dx, y + dy, routeColorHex[0], routeColorHex[1], routeColorHex[2])
-
-
-                #Calculating delay
-                scheduledDep = current_deps[num]["scheduledDep"]
-                actualDep = current_deps[num]["depTimestamp"]
-
-                scheduled_dt = datetime.fromisoformat(scheduledDep)
-                actual_dt = datetime.fromisoformat(actualDep)
                 
-                depDelay = int((actual_dt - scheduled_dt).total_seconds() / 60)
 
-                if depDelay >= 1 and depDelay <= 3:
-                    graphics.DrawText(canvas, font, 201, posVert + 24 + num * 13, graphics.Color(255, 64, 0), f"+{depDelay}")
-                if depDelay >= 4 and depDelay <= 9:
-                    graphics.DrawText(canvas, font, 201, posVert + 24 + num * 13, graphics.Color(255, 0, 0), f"+{depDelay}")
-                if depDelay >= 10 and depDelay <= 180:
-                    graphics.DrawText(canvas, font, 195, posVert + 24 + num * 13, graphics.Color(255, 0, 0), f"+{depDelay}")
-                if depDelay <= -1:
-                    graphics.DrawText(canvas, font, 201, posVert + 24 + num * 13, graphics.Color(182, 255, 140), f"{depDelay}")
-            
+                for num in range(min(zeilen, len(current_deps))):
+                    #depWidth = len(current_deps[num]["departure"]) * 7
+                    
+                    ## Header
+                    graphics.DrawText(canvas, font, 1, posVert + 10, textColor, current_deps[num]["stationName"])
 
-                #Line
-                graphics.DrawText(canvas, font, 1, posVert + 24 + num * 13, routeTextColorHex, current_deps[num]["line"])
-                #Departure TIme
+                    if current_deps[num]["weatherTemp"] is not None:
+                        #print(f"Weather: {current_deps[num]['weatherTemp']}°C")
+                        weatherTemp = current_deps[num]["weatherTemp"]
+                        graphics.DrawText(canvas, font, 183, posVert + 10, textColor, f"{weatherTemp}°C")
+                    #else:
+                    #print("No weather data")
 
-                #Destination logic
-                if len(current_deps[num]["line"]) > 3:
-                    destXPos = 12 + len(current_deps[num]["line"]) * 5
-                else:
-                    destXPos = 22
+                    graphics.DrawText(canvas, font, 215, posVert + 10, textColor, current_deps[num]["shortTime"])
+                    graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
 
-                if not (current_deps[num]["cancelled"] in ("Ausfall") and cycle_count % 2 ==0):
-                    destinationText = current_deps[num]["destination"]
-                    destinationLength = len(destinationText)
-                    if destinationLength > 36 and depDelay == 0:
-                        destinationText = destinationText[:36]
-                    elif destinationLength > 33 and depDelay != 0:
-                        destinationText = destinationText[:33]
-                    graphics.DrawText(canvas, font, destXPos, posVert + 24 + num * 13, textColor, destinationText)
-                else: #Flashing
-                    graphics.DrawText(canvas, font, destXPos, posVert + 24 + num * 13, textColor, "entfällt")
-                    graphics.DrawText(canvas, font, destXPos, posVert + 24 + num * 13, textColor, "")
+                    
+                    #Line Background Color Block
+                    # Draw an 8x7 block at (x, y) with color (r, g, b)
+                    x, y = 0 , posVert + 16 + num * 13  # top-left corner
                 
-                if any([x == time for x in [(current_deps[num]["liveDep"]) , (current_deps[num]["unliveDep"])] for time in ("sofort","in 1 min")]) and cycle_count % 2 == 0:
-                    graphics.DrawText(canvas, font, 215, posVert + 25 + num * 13, textColor, "¥")
-                else: #What to do if no real time data
-                    if (current_deps[num]["liveDep"]) != "":
-                        graphics.DrawText(canvas, font, 215, posVert + 24 + num * 13, textColor, current_deps[num]["liveDep"])
-                    else:          
-                        graphics.DrawText(canvas, font, 215, posVert + 24 + num * 13, textColor, current_deps[num]["unliveDep"])
-                        graphics.DrawText(canvas, font, 247, posVert + 24 + num * 13, graphics.Color(255, 0, 0), "©")
-            
-            
-        
-            # --- SCROLLING LOGIC START ---
-            total_lines = zeilen
-            visible_lines = 4
-            line_height = 13
+                    routeColor = current_deps[num]["routeColor"]
+                    routeColorHex = hex_to_rgb(routeColor)
 
-            max_scroll = -line_height * (total_lines - visible_lines)
-            lines_scrolled = abs(posVert) // line_height
+                    routeTextColor = current_deps[num]["routeTextColor"]
+                    routeTextColorHex = hex_to_rgb(routeTextColor)
+                    routeTextColorHex = graphics.Color(routeTextColorHex[0], routeTextColorHex[1], routeTextColorHex[2])
 
-            if not scrolling_up and not end_pause:
-                # Downward scrolling with pause every 4 lines
-                if not is_paused and lines_scrolled % 4 == 0 and lines_scrolled != 0 and last_pause_pos != lines_scrolled:
-                    is_paused = True
-                    pause_start_time = time.time()
-                    last_pause_pos = lines_scrolled
+                    if len(current_deps[num]["line"]) > 3:
+                        lineColorBGlength = 5 + len(current_deps[num]["line"]) * 5
+                    else:
+                        lineColorBGlength = 19
 
-                if is_paused:
-                    if time.time() - pause_start_time >= pause_duration:
-                        is_paused = False
-                else:
-                    posVert -= 1
+                    for dx in range(lineColorBGlength):
+                        for dy in range(9):
+                            canvas.SetPixel(x + dx, y + dy, routeColorHex[0], routeColorHex[1], routeColorHex[2])
 
-                # If reached the end, start end pause
-                if posVert <= max_scroll:
-                    posVert = max_scroll
-                    end_pause = True
-                    end_pause_start = time.time()
-            elif end_pause:
-                # Wait at the end for 5 seconds
-                if time.time() - end_pause_start >= pause_duration:
-                    end_pause = False
-                    scrolling_up = True
-            elif scrolling_up:
-                # Scroll up without pausing
-                posVert += 1
-                if posVert >= 0:
-                    posVert = 0
-                    scrolling_up = False
-                    is_paused = True
-                    pause_start_time = time.time()
-                    last_pause_pos = None
-            # --- SCROLLING LOGIC END ---
 
-    except Exception as e:
-        print(f"verkackt {e}")
+                    #Calculating delay
+                    scheduledDep = current_deps[num]["scheduledDep"]
+                    actualDep = current_deps[num]["depTimestamp"]
 
-    update_counter = update_counter + 1
-    if update_counter >= updateInterval:
-        update_counter = 0
-        cycle_count = cycle_count + 1
-        if cycle_count >= 14:
-            cycle_count = 0
+                    scheduled_dt = datetime.fromisoformat(scheduledDep)
+                    actual_dt = datetime.fromisoformat(actualDep)
+                    
+                    depDelay = int((actual_dt - scheduled_dt).total_seconds() / 60)
 
-            web_value = stop_point_value.value
-            stopPoints = []
-            for station in web_value.splitlines():
-                stopPoints.append(station)
+                    if depDelay >= 1 and depDelay <= 3:
+                        graphics.DrawText(canvas, font, 201, posVert + 24 + num * 13, graphics.Color(255, 64, 0), f"+{depDelay}")
+                    if depDelay >= 4 and depDelay <= 9:
+                        graphics.DrawText(canvas, font, 201, posVert + 24 + num * 13, graphics.Color(255, 0, 0), f"+{depDelay}")
+                    if depDelay >= 10 and depDelay <= 180:
+                        graphics.DrawText(canvas, font, 195, posVert + 24 + num * 13, graphics.Color(255, 0, 0), f"+{depDelay}")
+                    if depDelay <= -1:
+                        graphics.DrawText(canvas, font, 201, posVert + 24 + num * 13, graphics.Color(182, 255, 140), f"{depDelay}")
                 
-            stop_index_counter = stop_index_counter + 1
-            if stop_index_counter >= len(stopPoints):
-                stop_index_counter = 0
 
-            Thread(target=get_departures, args=[stopPoints[stop_index_counter]]).start()
+                    #Line
+                    graphics.DrawText(canvas, font, 1, posVert + 24 + num * 13, routeTextColorHex, current_deps[num]["line"])
+                    #Departure TIme
 
-    if not alleStorung == "":
-        lenScroll = graphics.DrawText(canvas, font, pos, 61, textColor, alleStorung)
-        lenScroll = graphics.DrawText(canvas, font, pos + lenScroll, 61, textColor, alleStorung)
-        pos -= 1
-        if (pos <= -lenScroll):
-            pos = 0
+                    #Destination logic
+                    if len(current_deps[num]["line"]) > 3:
+                        destXPos = 12 + len(current_deps[num]["line"]) * 5
+                    else:
+                        destXPos = 22
 
-    canvas = matrix.SwapOnVSync(canvas)
-    time.sleep(1/updateInterval)
+                    if not (current_deps[num]["cancelled"] in ("Ausfall") and cycle_count % 2 ==0):
+                        destinationText = current_deps[num]["destination"]
+                        destinationLength = len(destinationText)
+                        if destinationLength > 36 and depDelay == 0:
+                            destinationText = destinationText[:36]
+                        elif destinationLength > 33 and depDelay != 0:
+                            destinationText = destinationText[:33]
+                        graphics.DrawText(canvas, font, destXPos, posVert + 24 + num * 13, textColor, destinationText)
+                    else: #Flashing
+                        graphics.DrawText(canvas, font, destXPos, posVert + 24 + num * 13, textColor, "entfällt")
+                        graphics.DrawText(canvas, font, destXPos, posVert + 24 + num * 13, textColor, "")
+                    
+                    if any([x == time for x in [(current_deps[num]["liveDep"]) , (current_deps[num]["unliveDep"])] for time in ("sofort","in 1 min")]) and cycle_count % 2 == 0:
+                        graphics.DrawText(canvas, font, 215, posVert + 25 + num * 13, textColor, "¥")
+                    else: #What to do if no real time data
+                        if (current_deps[num]["liveDep"]) != "":
+                            graphics.DrawText(canvas, font, 215, posVert + 24 + num * 13, textColor, current_deps[num]["liveDep"])
+                        else:          
+                            graphics.DrawText(canvas, font, 215, posVert + 24 + num * 13, textColor, current_deps[num]["unliveDep"])
+                            graphics.DrawText(canvas, font, 247, posVert + 24 + num * 13, graphics.Color(255, 0, 0), "©")
+                
+                
+            
+                # --- SCROLLING LOGIC START ---
+                total_lines = zeilen
+                visible_lines = 4
+                line_height = 13
+
+                max_scroll = -line_height * (total_lines - visible_lines)
+                lines_scrolled = abs(posVert) // line_height
+
+                if not scrolling_up and not end_pause:
+                    # Downward scrolling with pause every 4 lines
+                    if not is_paused and lines_scrolled % 4 == 0 and lines_scrolled != 0 and last_pause_pos != lines_scrolled:
+                        is_paused = True
+                        pause_start_time = time.time()
+                        last_pause_pos = lines_scrolled
+
+                    if is_paused:
+                        if time.time() - pause_start_time >= pause_duration:
+                            is_paused = False
+                    else:
+                        posVert -= 1
+
+                    # If reached the end, start end pause
+                    if posVert <= max_scroll:
+                        posVert = max_scroll
+                        end_pause = True
+                        end_pause_start = time.time()
+                elif end_pause:
+                    # Wait at the end for 5 seconds
+                    if time.time() - end_pause_start >= pause_duration:
+                        end_pause = False
+                        scrolling_up = True
+                elif scrolling_up:
+                    # Scroll up without pausing
+                    posVert += 1
+                    if posVert >= 0:
+                        posVert = 0
+                        scrolling_up = False
+                        is_paused = True
+                        pause_start_time = time.time()
+                        last_pause_pos = None
+                # --- SCROLLING LOGIC END ---
+
+        except Exception as e:
+            print(f"verkackt {e}")
+
+        update_counter = update_counter + 1
+        if update_counter >= updateInterval:
+            update_counter = 0
+            cycle_count = cycle_count + 1
+            if cycle_count >= 14:
+                cycle_count = 0
+
+                web_value = stop_point_value.value
+                stopPoints = []
+                for station in web_value.splitlines():
+                    stopPoints.append(station)
+                    
+                stop_index_counter = stop_index_counter + 1
+                if stop_index_counter >= len(stopPoints):
+                    stop_index_counter = 0
+
+                Thread(target=get_departures, args=[stopPoints[stop_index_counter]]).start()
+
+        if not alleStorung == "":
+            lenScroll = graphics.DrawText(canvas, font, pos, 61, textColor, alleStorung)
+            lenScroll = graphics.DrawText(canvas, font, pos + lenScroll, 61, textColor, alleStorung)
+            pos -= 1
+            if (pos <= -lenScroll):
+                pos = 0
+
+        canvas = matrix.SwapOnVSync(canvas)
+        time.sleep(1/updateInterval)
+    elif displayDesign == "test":
+        zeilen = 4
+        try:
+            for num in range(min(zeilen, len(current_deps))):
+                dep = current_deps[num]
+                graphics.DrawText(canvas, font, 1, posVert + 10, textColor, dep["stationName"])
+                graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
+                graphics.DrawText(canvas, font, 1, posVert + 10, textColor, dep["stationName"])
+                graphics.DrawText(canvas, font, 215, posVert + 10, textColor, dep["shortTime"])
+                graphics.DrawLine(canvas, 0, posVert + 13, 255, posVert + 13, textColor)
+                graphics.DrawText(canvas, font, 1, posVert + 24 + num * 13, textColor, dep["line"])
+                graphics.DrawText(canvas, font, 50, posVert + 24 + num * 13, textColor, dep["destination"])
+                graphics.DrawText(canvas, font, 215, posVert + 24 + num * 13, textColor, dep["liveDep"] if dep["liveDep"] != "" else dep["unliveDep"])
+
+        except Exception as e:
+            print(f"verkackt beim rendern {e}")
+        canvas = matrix.SwapOnVSync(canvas)
+        time.sleep(1)
